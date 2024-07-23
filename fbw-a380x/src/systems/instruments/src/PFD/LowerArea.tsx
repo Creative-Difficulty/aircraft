@@ -1,5 +1,4 @@
 import { Arinc429Values } from 'instruments/src/PFD/shared/ArincValueProvider';
-import { PFDSimvars } from 'instruments/src/PFD/shared/PFDSimvarPublisher';
 import {
   ClockEvents,
   ConsumerSubject,
@@ -11,7 +10,8 @@ import {
   VNode,
 } from '@microsoft/msfs-sdk';
 import { ArincEventBus, MathUtils } from '@flybywiresim/fbw-sdk';
-import { EcamMemos } from '@instruments/common/EWDMessages';
+import { PFDSimvars } from 'instruments/src/PFD/shared/PFDSimvarPublisher';
+import { EcamMemos } from '@instruments/common/EcamMessages';
 import { MemoFormatter } from 'instruments/src/PFD/MemoFormatter';
 
 export class LowerArea extends DisplayComponent<{

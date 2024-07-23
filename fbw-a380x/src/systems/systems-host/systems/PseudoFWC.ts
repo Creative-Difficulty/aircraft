@@ -21,7 +21,6 @@ import {
   Arinc429SignStatusMatrix,
   Arinc429Word,
   FrequencyMode,
-  NXDataStore,
   NXLogicClockNode,
   NXLogicConfirmNode,
   NXLogicMemoryNode,
@@ -38,7 +37,7 @@ import {
   EcamMemos,
   isChecklistAction,
   pfdMemoDisplay,
-} from '@instruments/common/EWDMessages';
+} from '@instruments/common/EcamMessages';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -135,6 +134,10 @@ export class PseudoFWC {
 
   private static readonly EWD_MESSAGE_LINES = 7;
 
+  private static readonly SD_STATUS_INFO_MAX_LINES = 5;
+
+  private static readonly SD_STATUS_INOP_SYS_MAX_LINES = 10;
+
   private static readonly ewdMessageSimVarsLeft = Array.from(
     { length: PseudoFWC.EWD_MESSAGE_LINES },
     (_, i) => `L:A32NX_EWD_LOWER_LEFT_LINE_${i + 1}`,
@@ -159,6 +162,33 @@ export class PseudoFWC {
   );
 
   private readonly pfdMessageLines = Array.from({ length: PseudoFWC.EWD_MESSAGE_LINES }, (_, _i) => Subject.create(''));
+
+  private static readonly sdStatusInfoSimVars = Array.from(
+    { length: PseudoFWC.SD_STATUS_INFO_MAX_LINES },
+    (_, i) => `L:A32NX_SD_STATUS_INFO_LINE_${i + 1}`,
+  );
+
+  private readonly sdStatusInfoLines = Array.from({ length: PseudoFWC.SD_STATUS_INFO_MAX_LINES }, (_, _i) =>
+    Subject.create(''),
+  );
+
+  private static readonly sdStatusInopAllPhasesSimVars = Array.from(
+    { length: PseudoFWC.SD_STATUS_INOP_SYS_MAX_LINES },
+    (_, i) => `L:A32NX_SD_STATUS_INOP_ALL_LINE_${i + 1}`,
+  );
+
+  private readonly sdStatusInopAllPhasesLines = Array.from({ length: PseudoFWC.SD_STATUS_INFO_MAX_LINES }, (_, _i) =>
+    Subject.create(''),
+  );
+
+  private static readonly sdStatusInopApprLdgSimVars = Array.from(
+    { length: PseudoFWC.SD_STATUS_INOP_SYS_MAX_LINES },
+    (_, i) => `L:A32NX_SD_STATUS_INOP_LDG_LINE_${i + 1}`,
+  );
+
+  private readonly sdStatusInopApprLdgLines = Array.from({ length: PseudoFWC.SD_STATUS_INFO_MAX_LINES }, (_, _i) =>
+    Subject.create(''),
+  );
 
   /* PSEUDO FWC VARIABLES */
   private readonly startupTimer = new DebounceTimer();
@@ -387,6 +417,16 @@ export class PseudoFWC {
   private readonly dcESSBusPowered = Subject.create(false);
 
   private readonly dc2BusPowered = Subject.create(false);
+
+  private readonly extPwrConnected = Subject.create(false);
+
+  private readonly engine1Running = Subject.create(false);
+
+  private readonly engine2Running = Subject.create(false);
+
+  private readonly engine3Running = Subject.create(false);
+
+  private readonly engine4Running = Subject.create(false);
 
   /* 27 - FLIGHT CONTROLS */
 
@@ -632,6 +672,14 @@ export class PseudoFWC {
 
   private readonly yepumpPBisAuto = Subject.create(false);
 
+  private readonly greenAPumpOn = Subject.create(false);
+
+  private readonly greenBPumpOn = Subject.create(false);
+
+  private readonly yellowAPumpOn = Subject.create(false);
+
+  private readonly yellowBPumpOn = Subject.create(false);
+
   /* 31 - FWS */
 
   private readonly fwcFlightPhase = Subject.create(-1);
@@ -783,6 +831,8 @@ export class PseudoFWC {
 
   private stallWarningRaw = ConsumerValue.create(this.sub.on('stall_warning_on'), false);
 
+  private readonly trueNorthRef = Subject.create(false);
+
   /* SURVEILLANCE */
   private readonly gpwsFlaps3 = Subject.create(false);
 
@@ -799,6 +849,10 @@ export class PseudoFWC {
   private readonly engine1State = Subject.create(0);
 
   private readonly engine2State = Subject.create(0);
+
+  private readonly engine3State = Subject.create(0);
+
+  private readonly engine4State = Subject.create(0);
 
   private readonly N1Eng1 = Subject.create(0);
 
@@ -976,9 +1030,7 @@ export class PseudoFWC {
 
   private readonly manLandingElevation = Subject.create(false);
 
-  private readonly noSmoking = Subject.create(0);
-
-  private readonly noSmokingSwitchPosition = Subject.create(0);
+  private readonly noMobileSwitchPosition = Subject.create(0);
 
   private readonly predWSOn = Subject.create(false);
 
@@ -995,10 +1047,6 @@ export class PseudoFWC {
   private readonly wingAntiIce = Subject.create(false);
 
   private readonly voiceVhf3 = Subject.create(false);
-
-  /* SETTINGS */
-
-  private readonly configPortableDevices = Subject.create(false);
 
   constructor(
     private readonly bus: EventBus,
@@ -1019,6 +1067,24 @@ export class PseudoFWC {
     this.pfdMessageLines.forEach((ls, i) =>
       ls.sub((l) => {
         SimVar.SetSimVarValue(PseudoFWC.pfdMessageSimVars[i], 'string', l ?? '');
+      }),
+    );
+
+    this.sdStatusInfoLines.forEach((ls, i) =>
+      ls.sub((l) => {
+        SimVar.SetSimVarValue(PseudoFWC.sdStatusInfoSimVars[i], 'string', l ?? '');
+      }),
+    );
+
+    this.sdStatusInopAllPhasesLines.forEach((ls, i) =>
+      ls.sub((l) => {
+        SimVar.SetSimVarValue(PseudoFWC.sdStatusInopAllPhasesSimVars[i], 'string', l ?? '');
+      }),
+    );
+
+    this.sdStatusInopApprLdgLines.forEach((ls, i) =>
+      ls.sub((l) => {
+        SimVar.SetSimVarValue(PseudoFWC.sdStatusInopApprLdgSimVars[i], 'string', l ?? '');
       }),
     );
 
@@ -1298,13 +1364,27 @@ export class PseudoFWC {
 
     /* ENGINE AND THROTTLE acquisition */
 
-    this.engine1State.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_STATE:1', 'Enum'));
-    this.engine2State.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_STATE:2', 'Enum'));
+    const engine1StatesimVar = SimVar.GetSimVarValue('L:A32NX_ENGINE_STATE:1', 'Enum');
+    const engine2StateSimVar = SimVar.GetSimVarValue('L:A32NX_ENGINE_STATE:2', 'Enum');
+    const engine3StateSiMVar = SimVar.GetSimVarValue('L:A32NX_ENGINE_STATE:3', 'Enum');
+    const engine4StateSiMVar = SimVar.GetSimVarValue('L:A32NX_ENGINE_STATE:4', 'Enum');
+
+    this.engine1State.set(engine1StatesimVar);
+    this.engine2State.set(engine2StateSimVar);
+    this.engine3State.set(engine3StateSiMVar);
+    this.engine4State.set(engine4StateSiMVar);
+
+    this.engine1Running.set(engine1StatesimVar == 1);
+    this.engine2Running.set(engine2StateSimVar == 1);
+    this.engine3Running.set(engine3StateSiMVar == 1);
+    this.engine4Running.set(engine4StateSiMVar == 1);
+
     this.N1Eng1.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_N1:1', 'number'));
     this.N1Eng2.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_N1:2', 'number'));
     this.N2Eng1.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_N2:1', 'number'));
     this.N2Eng2.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_N2:2', 'number'));
     this.N1IdleEng.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_IDLE_N1', 'number'));
+
     // FIXME move out of acquisition to logic below
     const oneEngineAboveMinPower = this.engine1AboveIdle.get() || this.engine2AboveIdle.get();
 
@@ -1340,6 +1420,11 @@ export class PseudoFWC {
 
     /* HYDRAULICS acquisition */
 
+    this.greenAPumpOn.set(SimVar.GetSimVarValue('L:A32NX_HYD_GA_EPUMP_ACTIVE', 'bool'));
+    this.greenBPumpOn.set(SimVar.GetSimVarValue('L:A32NX_HYD_GB_EPUMP_ACTIVE', 'bool'));
+    this.yellowAPumpOn.set(SimVar.GetSimVarValue('L:A32NX_HYD_YA_EPUMP_ACTIVE', 'bool'));
+    this.yellowBPumpOn.set(SimVar.GetSimVarValue('L:A32NX_HYD_YB_EPUMP_ACTIVE', 'bool'));
+
     this.blueElecPumpPBAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_EPUMPB_PB_IS_AUTO', 'bool'));
     this.blueLP.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_EDPUMP_LOW_PRESS', 'bool'));
     this.blueRvrLow.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_RESERVOIR_LEVEL_IS_LOW', 'bool'));
@@ -1360,6 +1445,7 @@ export class PseudoFWC {
     const yellowSysPressurised = SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH', 'bool');
 
     /* ADIRS acquisition */
+    /* NAVIGATION */
 
     this.adirsRemainingAlignTime.set(SimVar.GetSimVarValue('L:A32NX_ADIRS_REMAINING_IR_ALIGNMENT_TIME', 'Seconds'));
 
@@ -1380,6 +1466,8 @@ export class PseudoFWC {
     const adr3MaxCas = Arinc429Word.fromSimVarValue('L:A32NX_ADIRS_ADR_3_MAX_AIRSPEED');
     const adr1Discrete1 = Arinc429Word.fromSimVarValue('L:A32NX_ADIRS_ADR_1_DISCRETE_WORD_1');
     const adr2Discrete1 = Arinc429Word.fromSimVarValue('L:A32NX_ADIRS_ADR_2_DISCRETE_WORD_1');
+
+    this.trueNorthRef.set(SimVar.GetSimVarValue('L:A32NX_PUSH_TRUE_REF', 'number'));
 
     /* LANDING GEAR AND LIGHTS acquisition */
 
@@ -1750,6 +1838,14 @@ export class PseudoFWC {
     this.rmp3Fault.set(false);
     this.rmp3Off.set(SimVar.GetSimVarValue('L:A380X_RMP_3_BRIGHTNESS_KNOB', 'number') === 0);
 
+    /* 24 - Electrical */
+    this.extPwrConnected.set(
+      SimVar.GetSimVarValue('L:A32NX_ELEC_CONTACTOR_990XG1_IS_CLOSED', 'bool') ||
+        SimVar.GetSimVarValue('L:A32NX_ELEC_CONTACTOR_990XG2_IS_CLOSED', 'bool') ||
+        SimVar.GetSimVarValue('L:A32NX_ELEC_CONTACTOR_990XG3_IS_CLOSED', 'bool') ||
+        SimVar.GetSimVarValue('L:A32NX_ELEC_CONTACTOR_990XG4_IS_CLOSED', 'bool'),
+    );
+
     /* OTHER STUFF */
 
     this.airKnob.set(SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', 'enum'));
@@ -1759,8 +1855,7 @@ export class PseudoFWC {
     this.manLandingElevation.set(activeCpc.bitValueOr(17, false));
     this.seatBelt.set(SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'bool'));
     this.ndXfrKnob.set(SimVar.GetSimVarValue('L:A32NX_ECAM_ND_XFR_SWITCHING_KNOB', 'enum'));
-    this.noSmoking.set(SimVar.GetSimVarValue('L:A32NX_NO_SMOKING_MEMO', 'bool'));
-    this.noSmokingSwitchPosition.set(SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', 'Enum'));
+    this.noMobileSwitchPosition.set(SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', 'number'));
     this.strobeLightsOn.set(SimVar.GetSimVarValue('L:LIGHTING_STROBE_0', 'Bool'));
     this.gpwsFlaps3.set(SimVar.GetSimVarValue('L:A32NX_GPWS_FLAPS3', 'Bool'));
     this.gpwsFlapMode.set(SimVar.GetSimVarValue('L:A32NX_GPWS_FLAP_OFF', 'Bool'));
@@ -2306,10 +2401,6 @@ export class PseudoFWC {
       this.iceNotDetTimer2.write(iceNotDetected1 && !(icePercentage >= 0.1 || (tat < 10 && inCloud === 1)), deltaTime),
     );
 
-    /* SETTINGS */
-
-    this.configPortableDevices.set(NXDataStore.get('CONFIG_USING_PORTABLE_DEVICES', '0') !== '0');
-
     /* CABIN READY */
 
     const callPushAft = SimVar.GetSimVarValue('L:PUSH_OVHD_CALLS_AFT', 'bool');
@@ -2409,6 +2500,9 @@ export class PseudoFWC {
     let tempMemoArrayLeft: string[] = [];
     let tempMemoArrayRight: string[] = [];
     const allFailureKeys: string[] = [];
+    const stsInfoKeys: string[] = [];
+    const stsInopAllPhasesKeys: string[] = [];
+    const stsInopApprLdgKeys: string[] = [];
     let failureKeys: string[] = this.presentedFailures;
     let recallFailureKeys: string[] = this.recallFailures;
     let failureSystemCount = 0;
@@ -2523,6 +2617,17 @@ export class PseudoFWC {
         }
 
         allFailureKeys.push(key);
+
+        // Add keys for STS page
+        if (value.info) {
+          stsInfoKeys.push(...[...new Set(value.info())]); // Only unique keys
+        }
+        if (value.inopSysAllPhases) {
+          stsInopAllPhasesKeys.push(...[...new Set(value.inopSysAllPhases())]); // Only unique keys
+        }
+        if (value.inopSysApprLdg) {
+          stsInopApprLdgKeys.push(...[...new Set(value.inopSysApprLdg())]); // Only unique keys
+        }
 
         if (!recallFailureKeys.includes(key)) {
           if (value.sysPage > -1) {
@@ -2679,6 +2784,11 @@ export class PseudoFWC {
     // TODO order by decreasing importance
     this.pfdMessageLines.forEach((l, i) => l.set(orderedMemoArrayRight.filter((it) => pfdMemoDisplay.includes(it))[i]));
 
+    // TODO order by decreasing importance
+    this.sdStatusInfoLines.forEach((l, i) => l.set(stsInfoKeys[i]));
+    this.sdStatusInopAllPhasesLines.forEach((l, i) => l.set(stsInopAllPhasesKeys[i]));
+    this.sdStatusInopApprLdgLines.forEach((l, i) => l.set(stsInopApprLdgKeys[i]));
+
     // This does not consider interrupting c-chord, priority of synthetic voice etc.
     // We shall wait for the rust FWC for those nice things!
     if (this.auralSingleChimePending && !this.auralCrcActive.get() && !this.auralSingleChimeInhibitTimer.isPending()) {
@@ -2730,81 +2840,6 @@ export class PseudoFWC {
 
   /** MEMOs on lower right side of EWD */
   ewdMemos: EwdMemoDict = {
-    '0000030': {
-      // IR IN ALIGN
-      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
-      simVarIsActive: MappedSubject.create(
-        ([adirsRemainingAlignTime, adiru1State, adiru2State, adiru3State]) => {
-          const remainingTimeAbove240 = adirsRemainingAlignTime >= 240;
-          const allInState1 = adiru1State === 1 && adiru2State === 1 && adiru3State === 1;
-
-          return remainingTimeAbove240 && allInState1;
-        },
-        this.adirsRemainingAlignTime,
-        this.adiru1State,
-        this.adiru2State,
-        this.adiru3State,
-      ),
-      whichCodeToReturn: () => [
-        this.adirsMessage1(
-          this.adirsRemainingAlignTime.get(),
-          (this.engine1State.get() > 0 && this.engine1State.get() < 4) ||
-            (this.engine2State.get() > 0 && this.engine2State.get() < 4),
-        ),
-      ],
-      codesToReturn: [
-        '000003001',
-        '000003002',
-        '000003003',
-        '000003004',
-        '000003005',
-        '000003006',
-        '000003007',
-        '000003008',
-      ],
-      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000031': {
-      // IR IN ALIGN
-      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
-      simVarIsActive: MappedSubject.create(
-        ([adirsRemainingAlignTime, adiru1State, adiru2State, adiru3State]) => {
-          const remainingTimeAbove0 = adirsRemainingAlignTime > 0;
-          const remainingTimeBelow240 = adirsRemainingAlignTime < 240;
-          const allInState1 = adiru1State === 1 && adiru2State === 1 && adiru3State === 1;
-
-          return remainingTimeAbove0 && remainingTimeBelow240 && allInState1;
-        },
-        this.adirsRemainingAlignTime,
-        this.adiru1State,
-        this.adiru2State,
-        this.adiru3State,
-      ),
-      whichCodeToReturn: () => [
-        this.adirsMessage2(
-          this.adirsRemainingAlignTime.get(),
-          (this.engine1State.get() > 0 && this.engine1State.get() < 4) ||
-            (this.engine2State.get() > 0 && this.engine2State.get() < 4),
-        ),
-      ],
-      codesToReturn: [
-        '000003101',
-        '000003102',
-        '000003103',
-        '000003104',
-        '000003105',
-        '000003106',
-        '000003107',
-        '000003108',
-      ],
-      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
     '0000050': {
       // REFUELING
       flightPhaseInhib: [],
@@ -2821,73 +2856,18 @@ export class PseudoFWC {
       sysPage: -1,
       side: 'RIGHT',
     },
-    '0000055': {
+    271000001: {
       // GND SPLRs ARMED
       flightPhaseInhib: [2, 9, 10],
       simVarIsActive: this.spoilersArmed,
       whichCodeToReturn: () => [0],
-      codesToReturn: ['000005501'],
+      codesToReturn: ['271000001'],
       memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
       failure: 0,
       sysPage: -1,
       side: 'RIGHT',
     },
-    '0000080': {
-      // SEAT BELTS
-      flightPhaseInhib: [2, 9, 10],
-      simVarIsActive: this.seatBelt.map((v) => !!v),
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000008001'],
-      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000090': {
-      // NO SMOKING
-      flightPhaseInhib: [2, 9, 10],
-      simVarIsActive: MappedSubject.create(
-        ([noSmoking, configPortableDevices]) => noSmoking === 1 && !configPortableDevices,
-        this.noSmoking,
-        this.configPortableDevices,
-      ),
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000009001'],
-      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000095': {
-      // NO MOBILE
-      flightPhaseInhib: [2, 9, 10],
-      simVarIsActive: MappedSubject.create(
-        ([noSmoking, configPortableDevices]) => noSmoking === 1 && !!configPortableDevices,
-        this.noSmoking,
-        this.configPortableDevices,
-      ),
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000009501'],
-      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000100': {
-      // STROBE LIGHT OFF
-      flightPhaseInhib: [],
-      simVarIsActive: MappedSubject.create(
-        ([aircraftOnGround, strobeLightsOn]) => !!(!aircraftOnGround && strobeLightsOn === 2),
-        this.aircraftOnGround,
-        this.strobeLightsOn,
-      ),
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000010001'],
-      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
+
     '0000105': {
       // OUTR TK FUEL XFRD
       flightPhaseInhib: [], // Plus check that outer tanks not empty
@@ -2910,28 +2890,6 @@ export class PseudoFWC {
       whichCodeToReturn: () => [0],
       codesToReturn: ['000030501'], // Not inhibited
       memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000140': {
-      // T.O. INHIBIT
-      flightPhaseInhib: [],
-      simVarIsActive: this.showTakeoffInhibit,
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000014001'],
-      memoInhibit: () => false,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000150': {
-      // LDG INHIBIT
-      flightPhaseInhib: [],
-      simVarIsActive: this.showLandingInhibit,
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000015001'],
-      memoInhibit: () => false,
       failure: 0,
       sysPage: -1,
       side: 'RIGHT',
@@ -2975,61 +2933,6 @@ export class PseudoFWC {
       ),
       whichCodeToReturn: () => [this.amberSpeedBrake.get() ? 1 : 0],
       codesToReturn: ['000006001', '000006002'],
-      memoInhibit: () => false,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000200': {
-      // PARK BRK
-      flightPhaseInhib: [3, 4, 5, 6, 7, 8],
-      simVarIsActive: this.parkBrake,
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000020001'],
-      memoInhibit: () => false,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000040': {
-      // NW STRG DISC
-      flightPhaseInhib: [],
-      simVarIsActive: this.nwSteeringDisc,
-      whichCodeToReturn: () => [this.engine1State.get() > 0 || this.engine2State.get() > 0 ? 1 : 0],
-      codesToReturn: ['000004001', '000004002'],
-      memoInhibit: () => false,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000160': {
-      // PTU ON
-      flightPhaseInhib: [],
-      simVarIsActive: this.hydPTU,
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000016001'],
-      memoInhibit: () => false,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000210': {
-      // RAT OUT
-      flightPhaseInhib: [],
-      simVarIsActive: this.ratDeployed.map((v) => v > 0),
-      whichCodeToReturn: () => [[1, 2].includes(this.fwcFlightPhase.get()) ? 1 : 0],
-      codesToReturn: ['000021001', '000021002'],
-      memoInhibit: () => false,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000070': {
-      // IGNITION
-      flightPhaseInhib: [],
-      simVarIsActive: this.engSelectorPosition.map((v) => v === 2),
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000007001'],
       memoInhibit: () => false,
       failure: 0,
       sysPage: -1,
@@ -3193,17 +3096,6 @@ export class PseudoFWC {
       sysPage: -1,
       side: 'RIGHT',
     },
-    '0000220': {
-      // BRAKE FAN
-      flightPhaseInhib: [],
-      simVarIsActive: this.brakeFan,
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000022001'],
-      memoInhibit: () => false,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
     '0000290': {
       // SWITCHING PNL
       flightPhaseInhib: [],
@@ -3226,17 +3118,6 @@ export class PseudoFWC {
       sysPage: -1,
       side: 'RIGHT',
     },
-    '0000022': {
-      // AUTOBRAKE
-      flightPhaseInhib: [],
-      simVarIsActive: this.fwcFlightPhase.map((v) => v === 7 || v === 8),
-      whichCodeToReturn: () => [this.autoBrake.get() - 1],
-      codesToReturn: ['000002201', '000002202', '000002203', '000002204'],
-      memoInhibit: () => false,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
     '0000230': {
       // MAN LANDING ELEVATION
       flightPhaseInhib: [],
@@ -3254,21 +3135,6 @@ export class PseudoFWC {
       simVarIsActive: this.fuelXFeedPBOn,
       whichCodeToReturn: () => [[3, 4, 5].includes(this.fwcFlightPhase.get()) ? 1 : 0],
       codesToReturn: ['000025001', '000025002'],
-      memoInhibit: () => false,
-      failure: 0,
-      sysPage: -1,
-      side: 'RIGHT',
-    },
-    '0000680': {
-      // ADIRS SWTG
-      flightPhaseInhib: [],
-      simVarIsActive: MappedSubject.create(
-        ([airKnob, attKnob]) => attKnob !== 1 || airKnob !== 1,
-        this.airKnob,
-        this.attKnob,
-      ),
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['000068001'],
       memoInhibit: () => false,
       failure: 0,
       sysPage: -1,
@@ -3357,6 +3223,304 @@ export class PseudoFWC {
       simVarIsActive: this.voiceVhf3,
       whichCodeToReturn: () => [0],
       codesToReturn: ['230000015'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+
+    // ATA 24
+    '241000001': {
+      // ELEC EXT PWR
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8],
+      simVarIsActive: this.extPwrConnected,
+      whichCodeToReturn: () => [
+        [
+          this.engine1Running.get(),
+          this.engine2Running.get(),
+          this.engine3Running.get(),
+          this.engine4Running.get(),
+        ].filter(Boolean).length > 1
+          ? 0
+          : 1,
+      ],
+      codesToReturn: ['241000001', '241000002'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '242000001': {
+      // RAT OUT
+      flightPhaseInhib: [],
+      simVarIsActive: this.ratDeployed.map((v) => v > 0),
+      whichCodeToReturn: () => [[1, 2].includes(this.fwcFlightPhase.get()) ? 0 : 1],
+      codesToReturn: ['242000001', '242000002'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    // ATA 29
+    '290000001': {
+      // G ELEC PMP A CTL
+      flightPhaseInhib: [],
+      simVarIsActive: this.greenAPumpOn,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290000001'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '290000002': {
+      // G ELEC PMP B CTL
+      flightPhaseInhib: [],
+      simVarIsActive: this.greenBPumpOn,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290000002'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '290000003': {
+      // Y ELEC PMP A CTL
+      flightPhaseInhib: [],
+      simVarIsActive: this.yellowAPumpOn,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290000003'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '290000004': {
+      // Y ELEC PMP A CTL
+      flightPhaseInhib: [],
+      simVarIsActive: this.yellowBPumpOn,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290000004'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    // 31 INDICATING RECORDING
+    314000001: {
+      // T.O. INHIBIT
+      flightPhaseInhib: [],
+      simVarIsActive: this.showTakeoffInhibit,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['314000001'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    314000002: {
+      // LDG INHIBIT
+      flightPhaseInhib: [],
+      simVarIsActive: this.showLandingInhibit,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['314000002'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    // 32 LANDING GEAR
+    320000001: {
+      // AUTO BRK OFF
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 8, 9, 12],
+      simVarIsActive: this.autoBrake.map((abrk) => abrk === 0),
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320000001'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    // ATA 32
+    '322000001': {
+      // N/W STEER DISC
+      flightPhaseInhib: [3, 4, 5, 7, 8, 9, 9, 10],
+      simVarIsActive: this.nwSteeringDisc,
+      whichCodeToReturn: () => [
+        [
+          this.engine1Running.get(),
+          this.engine2Running.get(),
+          this.engine3Running.get(),
+          this.engine4Running.get(),
+        ].filter(Boolean).length > 1
+          ? 0
+          : 1,
+      ],
+      codesToReturn: ['322000001', '322000002'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '320000002': {
+      // PARK BRK ON
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: this.parkBrake,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320000002'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '333000001': {
+      // STROBE LIGHT OFF
+      flightPhaseInhib: [],
+      simVarIsActive: MappedSubject.create(
+        ([aircraftOnGround, strobeLightsOn]) => !!(!aircraftOnGround && strobeLightsOn === 2),
+        this.aircraftOnGround,
+        this.strobeLightsOn,
+      ),
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['333000001'],
+      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '335000001': {
+      // SEAT BELTS
+      flightPhaseInhib: [2, 9, 10],
+      simVarIsActive: this.seatBelt.map((v) => !!v),
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['335000001'],
+      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '335000003': {
+      // NO MOBILE
+      flightPhaseInhib: [2, 9, 10],
+      simVarIsActive: this.noMobileSwitchPosition.map((pos) => pos === 0),
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['335000003'],
+      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '340000001': {
+      // TRUE NORTH REF
+      flightPhaseInhib: [],
+      simVarIsActive: this.trueNorthRef,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['340000001'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '340003001': {
+      // IR IN ALIGN
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: MappedSubject.create(
+        ([adirsRemainingAlignTime, adiru1State, adiru2State, adiru3State]) => {
+          const remainingTimeAbove240 = adirsRemainingAlignTime >= 240;
+          const allInState1 = adiru1State === 1 && adiru2State === 1 && adiru3State === 1;
+
+          return remainingTimeAbove240 && allInState1;
+        },
+        this.adirsRemainingAlignTime,
+        this.adiru1State,
+        this.adiru2State,
+        this.adiru3State,
+      ),
+      whichCodeToReturn: () => [
+        this.adirsMessage1(
+          this.adirsRemainingAlignTime.get(),
+          (this.engine1State.get() > 0 && this.engine1State.get() < 4) ||
+            (this.engine2State.get() > 0 && this.engine2State.get() < 4) ||
+            (this.engine3State.get() > 0 && this.engine3State.get() < 4) ||
+            (this.engine4State.get() > 0 && this.engine4State.get() < 4),
+        ),
+      ],
+      codesToReturn: [
+        '340003001',
+        '340003002',
+        '340003003',
+        '340003004',
+        '340003005',
+        '340003006',
+        '340003007',
+        '340003008',
+      ],
+      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '340003101': {
+      // IR IN ALIGN
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: MappedSubject.create(
+        ([adirsRemainingAlignTime, adiru1State, adiru2State, adiru3State]) => {
+          const remainingTimeAbove0 = adirsRemainingAlignTime > 0;
+          const remainingTimeBelow240 = adirsRemainingAlignTime < 240;
+          const allInState1 = adiru1State === 1 && adiru2State === 1 && adiru3State === 1;
+
+          return remainingTimeAbove0 && remainingTimeBelow240 && allInState1;
+        },
+        this.adirsRemainingAlignTime,
+        this.adiru1State,
+        this.adiru2State,
+        this.adiru3State,
+      ),
+      whichCodeToReturn: () => [
+        this.adirsMessage2(
+          this.adirsRemainingAlignTime.get(),
+          (this.engine1State.get() > 0 && this.engine1State.get() < 4) ||
+            (this.engine2State.get() > 0 && this.engine2State.get() < 4) ||
+            (this.engine3State.get() > 0 && this.engine3State.get() < 4) ||
+            (this.engine4State.get() > 0 && this.engine4State.get() < 4),
+        ),
+      ],
+      codesToReturn: [
+        '340003101',
+        '340003102',
+        '340003103',
+        '340003104',
+        '340003105',
+        '340003106',
+        '340003107',
+        '340003108',
+      ],
+      memoInhibit: () => this.toMemo.get() === 1 || this.ldgMemo.get() === 1,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '340068001': {
+      // ADIRS SWTG
+      flightPhaseInhib: [],
+      simVarIsActive: MappedSubject.create(
+        ([airKnob, attKnob]) => attKnob !== 1 || airKnob !== 1,
+        this.airKnob,
+        this.attKnob,
+      ),
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['340068001'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '709000001': {
+      // IGNITION
+      flightPhaseInhib: [],
+      simVarIsActive: this.engSelectorPosition.map((v) => v === 2),
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['709000001'],
       memoInhibit: () => false,
       failure: 0,
       sysPage: -1,
@@ -3612,7 +3776,7 @@ export class PseudoFWC {
    * Contains the activation checks for each of the abnormal sensed procedures (formerly left column of A32NX EWD memos).
    * Legacy, just for looking up the A32NX implementation. Will be moved to new structure (ID for checklist, array of bools for state of lines).
    */
-  ewdAbnormalSensedLegacy: any = {
+  /* ewdAbnormalSensedLegacy: any = {
     2900310: {
       // *HYD  - Blue
       flightPhaseInhib: [1, 4, 5, 10],
@@ -4911,5 +5075,5 @@ export class PseudoFWC {
       failure: 2,
       sysPage: 5,
     },
-  };
+  };*/
 }

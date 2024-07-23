@@ -130,7 +130,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
 
   private xpdrStatusChanged() {
     const state = this.xpdrState.get();
-    const isOnGround = SimVar.GetSimVarValue('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', SimVarValueType.Bool);
+    const isOnGround = this.props.fmcService.master?.fmgc.isOnGround();
 
     this.xpdrStatusSelectedIndex.set(
       state === TransponderState.ModeA || state === TransponderState.ModeC || state === TransponderState.ModeS ? 0 : 1,
@@ -148,18 +148,18 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
   }
 
   private setDefaultSettings() {
-    if (this.xpdrFailed.get() === false) {
+    if (!this.xpdrFailed.get()) {
       this.props.bus.getPublisher<MfdSurvEvents>().pub('mfd_xpdr_set_auto', true, true);
       this.props.bus.getPublisher<MfdSurvEvents>().pub('mfd_xpdr_set_alt_reporting', true, true);
     }
 
-    if (this.tcasFailed.get() === false) {
+    if (!this.tcasFailed.get()) {
       // FIXME replace with appropriate events
       this.tcasTaraSelectedIndex.set(0);
       this.tcasNormAbvBlwSelectedIndex.set(0);
     }
 
-    if (this.wxrFailed.get() === false) {
+    if (!this.wxrFailed.get()) {
       // FIXME replace with appropriate events
       this.wxrElevnTiltSelectedIndex.set(0);
       this.wxrAuto.set(true);
@@ -170,7 +170,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
       this.wxrOnVd.set(true);
     }
 
-    if (this.tawsFailed.get() === false) {
+    if (!this.tawsFailed.get()) {
       SimVar.SetSimVarValue('L:A32NX_GPWS_TERR_OFF', SimVarValueType.Bool, false);
       SimVar.SetSimVarValue('L:A32NX_GPWS_SYS_OFF', SimVarValueType.Bool, false);
       SimVar.SetSimVarValue('L:A32NX_GPWS_GS_OFF', SimVarValueType.Bool, false);
@@ -192,10 +192,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
           <div class="mfd-surv-controls-first-section">
             <div class="mfd-surv-controls-xpdr-section">
               <div class="mfd-surv-controls-xpdr-left">
-                <div
-                  class={{ 'mfd-surv-heading': true, failed: this.xpdrFailed }}
-                  style="position: relative; left: 100px; top: 3px;"
-                >
+                <div class={{ 'mfd-surv-heading': true, 'mfd-surv-xpdr-label': true, failed: this.xpdrFailed }}>
                   XPDR
                 </div>
                 <div class="mfd-label bigger" style="margin-top: 30px;">
@@ -249,12 +246,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
               </div>
             </div>
             <div class="mfd-surv-controls-tcas-section">
-              <div
-                class={{ 'mfd-surv-heading': true, failed: this.tcasFailed }}
-                style="position: relative; left: 150px; top: -70px;"
-              >
-                TCAS
-              </div>
+              <div class={{ 'mfd-surv-heading': true, 'mfd-surv-tcas-label': true, failed: this.tcasFailed }}>TCAS</div>
               <div class="mfd-surv-controls-tcas-left">
                 <RadioButtonGroup
                   values={['TA/RA', 'TA ONLY', 'STBY']}
@@ -279,12 +271,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
           </div>
           <div class="mfd-surv-controls-second-section">
             <div class="mfd-surv-controls-wxr-left">
-              <div
-                class={{ 'mfd-surv-heading': true, failed: this.wxrFailed }}
-                style="position: relative; left: 100px; top: 0px;"
-              >
-                WXR
-              </div>
+              <div class={{ 'mfd-surv-heading': true, 'mfd-surv-wxr-label': true, failed: this.wxrFailed }}>WXR</div>
               <div class="mfd-label bigger" style="margin-top: 80px;">
                 ELEVN/TILT
               </div>
@@ -363,12 +350,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
             </div>
           </div>
           <div class="mfd-surv-controls-third-section">
-            <div
-              class={{ 'mfd-surv-heading': true, failed: this.tawsFailed }}
-              style="position: relative; left: 100px; top: 5px;"
-            >
-              TAWS
-            </div>
+            <div class={{ 'mfd-surv-heading': true, 'mfd-surv-taws-label': true, failed: this.tawsFailed }}>TAWS</div>
             <div class="mfd-surv-controls-taws-section">
               <div class="mfd-surv-controls-taws-element" style="padding-right: 50px;">
                 <div class="mfd-surv-label">TERR SYS</div>

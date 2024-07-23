@@ -47,7 +47,8 @@ export class InsertNextWptFromWindow extends DisplayComponent<InsertNextWptFromW
   private availableWaypointsString = ArraySubject.create<string>([]);
 
   private async onModified(idx: number | null, text: string): Promise<void> {
-    if (!this.props.fmcService.master) {
+    const revWptPlanIndex = this.props.fmcService.master?.revisedWaypointPlanIndex.get();
+    if (!this.props.fmcService.master || revWptPlanIndex == null) {
       return;
     }
 
@@ -55,12 +56,8 @@ export class InsertNextWptFromWindow extends DisplayComponent<InsertNextWptFromW
       const wptInfo = this.props.availableWaypoints.get(idx);
       const revWpt = this.props.fmcService.master.revisedWaypointIndex.get();
       const fpln = this.props.fmcService.master.revisedWaypointIsAltn.get()
-        ? this.props.fmcService.master.flightPlanService.get(
-            this.props.fmcService.master.revisedWaypointPlanIndex.get() ?? 0,
-          ).alternateFlightPlan
-        : this.props.fmcService.master.flightPlanService.get(
-            this.props.fmcService.master.revisedWaypointPlanIndex.get() ?? 0,
-          );
+        ? this.props.fmcService.master.flightPlanService.get(revWptPlanIndex).alternateFlightPlan
+        : this.props.fmcService.master.flightPlanService.get(revWptPlanIndex);
       const wptToInsert = fpln?.legElementAt(wptInfo.originalLegIndex).definition.waypoint;
       if (
         this.props.availableWaypoints.get(idx) &&
@@ -150,12 +147,8 @@ export class InsertNextWptFromWindow extends DisplayComponent<InsertNextWptFromW
   render(): VNode {
     return (
       <div ref={this.topRef} style="position: relative;">
-        <div
-          class="mfd-dialog"
-          style={`${this.props.contentContainerStyle ?? ''}; left: 175px; top: 50px; width: 500px; height: 625px; overflow: visible;
-                    display: flex; flex-direction: column; justify-content: space-between;`}
-        >
-          <div style="width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding-top: 0px; padding-left: 10px;">
+        <div class="mfd-dialog mfd-fms-insert-next-wpt-box" style={`${this.props.contentContainerStyle ?? ''}`}>
+          <div class="mfd-fms-insert-next-wpt-box-inner">
             <span class="mfd-label">
               INSERT NEXT WPT FROM <span ref={this.identRef} class="mfd-value bigger" />
             </span>
@@ -177,7 +170,7 @@ export class InsertNextWptFromWindow extends DisplayComponent<InsertNextWptFromW
               />
             </div>
           </div>
-          <div style="display: flex; flex-direction: row; justify-content: space-between">
+          <div class="fr" style="justify-content: space-between">
             <Button
               label="CANCEL"
               onClick={() => {

@@ -30,7 +30,7 @@ export class IconButton extends DisplayComponent<IconButtonProps> {
   private fillColor = Subject.create('white');
 
   clickHandler(): void {
-    if (this.props?.disabled?.get() === false && this.props.onClick !== undefined) {
+    if (!this.props?.disabled?.get() && this.props.onClick !== undefined) {
       this.props.onClick();
     }
   }
@@ -50,7 +50,7 @@ export class IconButton extends DisplayComponent<IconButtonProps> {
 
     this.subs.push(
       this.props.disabled.sub((val) => {
-        if (val === true) {
+        if (val) {
           this.updateSvgColor('grey');
         } else {
           this.updateSvgColor('white');

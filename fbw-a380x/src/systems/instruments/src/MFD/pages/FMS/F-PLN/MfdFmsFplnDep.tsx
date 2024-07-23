@@ -48,10 +48,9 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
     if (flightPlan?.originAirport) {
       this.fromIcao.set(flightPlan.originAirport.ident);
 
-      const runways: ButtonMenuItem[] = [];
       const sortedRunways = flightPlan.availableOriginRunways.sort((a, b) => a.ident.localeCompare(b.ident));
-      sortedRunways.forEach((rw) => {
-        runways.push({
+      const runways: ButtonMenuItem[] = sortedRunways.map((rw) => {
+        return {
           label: `${rw.ident.substring(4).padEnd(3, ' ')} ${rw.length.toFixed(0).padStart(5, ' ')}M ${rw.lsIdent ? 'ILS' : ''}`,
           action: async () => {
             await this.props.fmcService.master?.flightPlanService.setOriginRunway(
@@ -70,7 +69,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
               isAltn ?? false,
             );
           },
-        });
+        };
       });
       this.rwyOptions.set(runways);
 
@@ -201,8 +200,8 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
         {/* begin page content */}
         <div class="mfd-fms-fpln-labeled-box-container">
           <span class="mfd-label mfd-spacing-right mfd-fms-fpln-labeled-box-label">SELECTED DEPARTURE</span>
-          <div class="mfd-fms-fpln-label-bottom-space" style="display: flex; flex-direction: row; align-items: center;">
-            <div style="flex: 3; display: flex; flex-direction: row; align-items: center;">
+          <div class="mfd-fms-fpln-label-bottom-space fr aic">
+            <div class="fr aic" style="flex: 3;">
               <span class="mfd-label mfd-spacing-right">FROM</span>
               <span
                 class={{
@@ -214,7 +213,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                 {this.fromIcao}
               </span>
             </div>
-            <div style="flex: 1; display: flex; flex-direction: column;">
+            <div class="fc" style="flex: 1;">
               <span class="mfd-label mfd-fms-fpln-label-bottom-space">RWY</span>
               <span
                 class={{
@@ -226,7 +225,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                 {this.rwyIdent}
               </span>
             </div>
-            <div style="flex: 1.3; display: flex; flex-direction: column;">
+            <div class="fc" style="flex: 1.3;">
               <span class="mfd-label mfd-fms-fpln-label-bottom-space">LENGTH</span>
               <div>
                 <span
@@ -241,7 +240,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                 <span class="mfd-label-unit mfd-unit-trailing">M</span>
               </div>
             </div>
-            <div style="flex: 0.7; display: flex; flex-direction: column;">
+            <div class="fc" style="flex: 0.7;">
               <span class="mfd-label mfd-fms-fpln-label-bottom-space">CRS</span>
               <div>
                 <span
@@ -257,8 +256,8 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
               </div>
             </div>
           </div>
-          <div style="display: flex; flex-direction: row; align-items: center;">
-            <div style="flex: 0.25; display: flex; flex-direction: column;">
+          <div class="fr aic">
+            <div class="fc" style="flex: 0.25;">
               <span class="mfd-label mfd-fms-fpln-label-bottom-space">EOSID</span>
               <span
                 class={{
@@ -270,7 +269,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                 {this.rwyEoSid}
               </span>
             </div>
-            <div style="flex: 0.3; display: flex; flex-direction: column;">
+            <div class="fc" style="flex: 0.3;">
               <span class="mfd-label mfd-fms-fpln-label-bottom-space">FREQ/CHAN</span>
               <span
                 class={{
@@ -282,7 +281,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                 {this.rwyFreq}
               </span>
             </div>
-            <div style="flex: 0.25; display: flex; flex-direction: column;">
+            <div class="fc" style="flex: 0.25;">
               <span class="mfd-label mfd-fms-fpln-label-bottom-space">SID</span>
               <div>
                 <span
@@ -296,7 +295,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                 </span>
               </div>
             </div>
-            <div style="flex: 0.2; display: flex; flex-direction: column;">
+            <div class="fc" style="flex: 0.2;">
               <span class="mfd-label mfd-fms-fpln-label-bottom-space">TRANS</span>
               <div>
                 <span
@@ -312,7 +311,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
             </div>
           </div>
         </div>
-        <div style="display: flex; flex-direction: row; margin-left: 50px;">
+        <div class="fr" style="margin-left: 50px;">
           <Button
             label="RWY"
             onClick={() => {}}
@@ -340,7 +339,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
           />
         </div>
         <div style="flex-grow: 1;" />
-        <div style="display: flex; flex-direction: row; justify-content: space-between;">
+        <div class="fr" style="justify-content: space-between;">
           <div ref={this.returnButtonDiv} style="display: flex; justify-content: flex-end; padding: 2px;">
             <Button
               label="RETURN"

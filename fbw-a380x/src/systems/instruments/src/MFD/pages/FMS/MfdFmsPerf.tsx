@@ -74,7 +74,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
   private showNoiseFields(visible: boolean) {
     // Only check for one, if one is instantiated the rest also is
     if (this.toNoiseButtonRef.getOrDefault()) {
-      if (visible === true) {
+      if (visible) {
         // TO page
         this.toNoiseButtonRef.instance.style.display = 'none';
         this.toNoiseEndLabelRef.instance.style.display = 'flex';
@@ -153,7 +153,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
   }
 
   private showConfirmVSpeeds(visible: boolean) {
-    if (visible === true) {
+    if (visible) {
       this.flapSpeedsRef.forEach((ref) => {
         if (ref.getOrDefault()) {
           ref.instance.style.display = 'none';
@@ -523,7 +523,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
     }
 
     if (fm.approachFlapConfig) {
-      this.apprSelectedFlapsIndex.set(fm.approachFlapConfig.get() - 3);
+      this.apprSelectedFlapsIndex.set(fm.approachFlapConfig.get() === 3 ? 0 : 1);
     }
 
     if (pd.transitionLevelIsFromDatabase) {
@@ -534,11 +534,8 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
       this.transFl.set(pd.transitionLevel);
     }
 
-    if (
-      this.activeFlightPhase.get() >= FmgcFlightPhase.Descent &&
-      this.props.fmcService.master?.guidanceController.vnavDriver.getLinearDeviation()
-    ) {
-      const vDev = this.props.fmcService.master?.guidanceController.vnavDriver.getLinearDeviation() ?? 0;
+    const vDev = this.props.fmcService.master?.guidanceController.vnavDriver.getLinearDeviation();
+    if (this.activeFlightPhase.get() >= FmgcFlightPhase.Descent && vDev != null) {
       this.apprVerticalDeviation.set(vDev >= 0 ? `+${vDev.toFixed(0)}FT` : `-${vDev.toFixed(0)}FT`);
     } else {
       this.apprVerticalDeviation.set('+-----');
@@ -654,7 +651,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
               `.${this.props.fmcService.master?.fmgc.getManagedClimbSpeedMach().toFixed(2).split('.')[1]}`,
             );
             this.clbTablePredLine3.set(null);
-          } else if (this.managedSpeedActive.get() === true) {
+          } else if (this.managedSpeedActive.get()) {
             this.clbTableModeLine1.set('MANAGED');
             // TODO add speed restriction (ECON, SPD LIM, ...) in smaller font
             if (clbSpeedLimit && SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet') < clbSpeedLimit.underAltitude) {
@@ -787,7 +784,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
               `.${this.props.fmcService.master?.fmgc.getManagedCruiseSpeedMach().toFixed(2).split('.')[1]}`,
             );
             this.crzTablePredLine2.set('--:--   ----');
-          } else if (this.managedSpeedActive.get() === true) {
+          } else if (this.managedSpeedActive.get()) {
             this.crzTableModeLine1.set('MANAGED');
             // TODO add speed restriction (ECON, SPD LIM, ...) in smaller font
             this.crzTableSpdLine1.set(
@@ -845,7 +842,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
             this.desTableSpdLine2.set(null);
             this.desTableMachLine2.set(null);
             this.desTablePredLine2.set(null);
-          } else if (this.managedSpeedActive.get() === true) {
+          } else if (this.managedSpeedActive.get()) {
             this.desTableModeLine1.set('MANAGED');
             this.desTableSpdLine1.set(this.props.fmcService.master?.fmgc.getManagedDescentSpeed().toFixed(0) ?? null);
             this.desTableMachLine1.set(

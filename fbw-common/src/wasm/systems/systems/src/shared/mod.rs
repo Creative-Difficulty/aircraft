@@ -517,6 +517,7 @@ pub(crate) enum FwcFlightPhase {
 
 /// The delay logic gate delays the true result of a given expression by the given amount of time.
 /// False results are output immediately.
+#[derive(Clone, Copy)]
 pub struct DelayedTrueLogicGate {
     delay: Duration,
     expression_result: bool,
@@ -1028,6 +1029,29 @@ impl Resolution for f64 {
     fn resolution(self, resolution: f64) -> f64 {
         (self / resolution).round() * resolution
     }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub enum FireDetectionZone {
+    Engine(usize),
+    Apu,
+    Mlg,
+}
+
+impl Display for FireDetectionZone {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FireDetectionZone::Apu => write!(f, "APU"),
+            FireDetectionZone::Mlg => write!(f, "MLG"),
+            FireDetectionZone::Engine(number) => write!(f, "{}", number),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub enum FireDetectionLoopID {
+    A,
+    B,
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-import {
+﻿import {
   A380EfisNdRangeValue,
   ArincEventBus,
   EfisNdMode,
@@ -59,23 +59,22 @@ export class VerticalDisplayDummy extends DisplayComponent<VerticalDisplayProps>
   render(): VNode {
     return (
       <svg ref={this.topRef} viewBox="0 0 768 1024" xmlns="http://www.w3.org/2000/svg">
-        <rect width="768" height="768" />
         <g>
-          <line x1="50" x2="50" y1="790" y2="980" stroke="red" stroke-width="2" />
-          <line x1="50" x2="75" y1="820" y2="820" stroke="red" stroke-width="2" />
-          <line x1="50" x2="75" y1="850" y2="850" stroke="red" stroke-width="2" />
-          <line x1="50" x2="75" y1="880" y2="880" stroke="red" stroke-width="2" />
-          <line x1="50" x2="75" y1="910" y2="910" stroke="red" stroke-width="2" />
-          <line x1="50" x2="75" y1="940" y2="940" stroke="red" stroke-width="2" />
-          <line x1="50" x2="75" y1="970" y2="970" stroke="red" stroke-width="2" />
+          <line x1="105" x2="105" y1="800" y2="1000" stroke="red" stroke-width="2" />
+          <line x1="105" x2="120" y1="820" y2="820" stroke="red" stroke-width="2" />
+          <line x1="105" x2="120" y1="850" y2="850" stroke="red" stroke-width="2" />
+          <line x1="105" x2="120" y1="880" y2="880" stroke="red" stroke-width="2" />
+          <line x1="105" x2="120" y1="910" y2="910" stroke="red" stroke-width="2" />
+          <line x1="105" x2="120" y1="940" y2="940" stroke="red" stroke-width="2" />
+          <line x1="105" x2="120" y1="970" y2="970" stroke="red" stroke-width="2" />
         </g>
         <g>
-          <line x1="100" x2="700" y1="790" y2="790" stroke="red" stroke-width="2" />
-          <line x1="100" x2="100" y1="790" y2="980" stroke="red" stroke-width="2" stroke-dasharray="8" />
-          <line x1="250" x2="250" y1="790" y2="980" stroke="red" stroke-width="2" stroke-dasharray="8" />
-          <line x1="400" x2="400" y1="790" y2="980" stroke="red" stroke-width="2" stroke-dasharray="8" />
-          <line x1="550" x2="550" y1="790" y2="980" stroke="red" stroke-width="2" stroke-dasharray="8" />
-          <line x1="700" x2="700" y1="790" y2="980" stroke="red" stroke-width="2" />
+          <line x1="150" x2="690" y1="800" y2="800" stroke="red" stroke-width="2" />
+          <line x1="150" x2="150" y1="800" y2="1000" stroke="red" stroke-width="2" stroke-dasharray="8" />
+          <line x1="285" x2="285" y1="800" y2="1000" stroke="red" stroke-width="2" stroke-dasharray="8" />
+          <line x1="420" x2="420" y1="800" y2="1000" stroke="red" stroke-width="2" stroke-dasharray="8" />
+          <line x1="555" x2="555" y1="800" y2="1000" stroke="red" stroke-width="2" stroke-dasharray="8" />
+          <line x1="690" x2="690" y1="800" y2="1000" stroke="red" stroke-width="2" />
         </g>
       </svg>
     );
